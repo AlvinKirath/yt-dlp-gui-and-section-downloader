@@ -3,8 +3,7 @@ A Python-based GUI application for downloading specific sections of YouTube vide
 ### 📚 Table of Contents
 
 - [Features](#features)  
-- [Prerequisites](#prerequisites) and [Installation](#installation)    
-- [Packaging into .exe](#packaging-into-exe)  
+- [Prerequisites](#prerequisites) and [Installation](#installation)     
 - [Usage](#usage)  
 ---
 
