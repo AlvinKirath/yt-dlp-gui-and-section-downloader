@@ -6,8 +6,6 @@ A Python-based GUI application for downloading specific sections of YouTube vide
 - [Prerequisites](#prerequisites) and [Installation](#installation)    
 - [Packaging into .exe](#packaging-into-exe)  
 - [Usage](#usage)  
-- [Contributing](#contributing)  
-- [License](#license)
 ---
 
 ### Features
@@ -115,4 +113,37 @@ https://www.youtube.com/watch?v=efgh5678,00:05:00,00:06:15
 
 
 ---
+## Usage
+
+### 1. Launch the Application
+
+* Navigate to the `dist` folder.
+* Double-click the `.exe` file to open the GUI application.
+
+### 2. Download a Single Section
+
+* Paste the video URL into the input field.
+* Enter the **Start Time** and **End Time** (in HH\:MM\:SS or seconds format).
+* Click the **Download** button to save the selected video section.
+
+### 3. Batch Download via CSV
+
+* Prepare a `.csv` file with the following format:
+
+  ```csv
+  URL,Start Time,End Time
+  https://www.youtube.com/watch?v=abcd1234,00:01:00,00:02:30
+  https://www.youtube.com/watch?v=efgh5678,00:05:00,00:06:15
+  ```
+
+* Click the **Select CSV** button in the GUI.
+
+* Choose your CSV file from the file dialog.
+
+* The application will automatically process and download each video section listed.
+
+### 4. Output
+
+* All downloaded files will be saved in the default or specified output directory.
+* Files are named based on video titles and segment times.
 
