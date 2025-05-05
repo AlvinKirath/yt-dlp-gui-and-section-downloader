@@ -14,7 +14,7 @@ Based on your script (`yt.py`) and your earlier descriptions, here’s a refined
 
 ---
 
-### 🚀 Features
+## 🚀 Features
 
 * 🎯 **Sectional Downloads**: Select specific start and end times to download only the desired part of a YouTube video, powered by `yt-dlp` and `ffmpeg`.
 * 🖼️ **User-Friendly GUI**: Built with `tkinter`, offering a clean, responsive interface with drag-and-drop support and visual feedback.
