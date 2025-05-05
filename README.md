@@ -1,11 +1,11 @@
 # yt-dlp-gui-and-section-downloader
 A Python-based GUI application for downloading specific sections of YouTube videos using yt-dlp and ffmpeg
 ### 📚 Table of Contents
-
 - [Features](#features)  
 - [Prerequisites](#prerequisites) and [Installation](#installation)     
 - [Usage](#usage)  
 ---
+Note : IF you dont want .exe file and conformtable with .py then just download the yt-dlp-gui-and-section-downloader.py file from code
 
 ### Features
 
