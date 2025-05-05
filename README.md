@@ -113,37 +113,57 @@ https://www.youtube.com/watch?v=efgh5678,00:05:00,00:06:15
 
 
 ---
-## Usage
+📥 Download
+Download the latest version of the application from the Releases section.
 
-### 1. Launch the Application
+Navigate to the Releases page.
 
-* Navigate to the `dist` folder.
-* Double-click the `.exe` file to open the GUI application.
+Download the .zip file for the latest release.
 
-### 2. Download a Single Section
+Extract the contents to your desired location.
 
-* Paste the video URL into the input field.
-* Enter the **Start Time** and **End Time** (in HH\:MM\:SS or seconds format).
-* Click the **Download** button to save the selected video section.
+🚀 Usage
+Running the Application
+Navigate to the extracted folder.
 
-### 3. Batch Download via CSV
+Locate and double-click the yt-dlp-gui.exe file to launch the application.
 
-* Prepare a `.csv` file with the following format:
+Downloading a Single Section
+Paste the YouTube video URL into the input field.
 
-  ```csv
-  URL,Start Time,End Time
-  https://www.youtube.com/watch?v=abcd1234,00:01:00,00:02:30
-  https://www.youtube.com/watch?v=efgh5678,00:05:00,00:06:15
-  ```
+Specify the Start Time and End Time in HH:MM:SS or seconds format.
 
-* Click the **Select CSV** button in the GUI.
+Choose the desired output format (MP4 or MP3).
 
-* Choose your CSV file from the file dialog.
+Click the Download button to save the selected segment.
+Gist
++2
+VideoHelp
++2
+Docs.rs
++2
 
-* The application will automatically process and download each video section listed.
+Batch Download via CSV
+Prepare a .csv file with the following format:
 
-### 4. Output
+csv
+Copy
+Edit
+URL,Start Time,End Time
+https://www.youtube.com/watch?v=abcd1234,00:01:00,00:02:30
+https://www.youtube.com/watch?v=efgh5678,00:05:00,00:06:15
+Click the Select CSV button in the GUI.
 
-* All downloaded files will be saved in the default or specified output directory.
-* Files are named based on video titles and segment times.
+Choose your prepared .csv file.
+
+The application will process and download each specified segment.
+Gist
+
+Output
+Downloaded files are saved in the default or specified output directory.
+
+File names are generated based on video titles and timestamps.
+
+🤝 Contributing
+Contributions are welcome! Please fork the repository and submit a pull request for any enhancements or bug fixes.
 
