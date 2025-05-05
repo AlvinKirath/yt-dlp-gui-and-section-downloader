@@ -2,9 +2,6 @@ import colorsys
 import tkinter as tk
 from tkinter import ttk
 from tkinter import scrolledtext
-"""
-YouTube Clip Downloader GUI - Fixed Black Theme, Speed/ETA, Video/Audio Issues
-"""
 import os
 import sys
 import csv
