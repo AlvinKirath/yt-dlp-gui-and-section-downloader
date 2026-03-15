@@ -12,6 +12,9 @@ import math
 import re
 from datetime import datetime
 import psutil  # --- NEW: Required for Pause/Resume feature ---
+import webbrowser
+import urllib.request
+import urllib.parse
 
 try:
     import tkinter as tk
@@ -69,12 +72,57 @@ def update_progress_gui(pct, speed, eta):
         app.stats_label.config(text="")
 
 
-def stream_process(cmd, log_widget, status_label, prefix_msg=None):
-    """Run a subprocess, intercept progress for the bar, and stream other output to the log."""
+def perform_online_tagging(filepath):
+    """Queries the iTunes API to find metadata and applies it via ffmpeg."""
+    base_name = os.path.splitext(os.path.basename(filepath))[0]
+    # Clean up title to improve search (remove "Official Video", brackets, etc.)
+    clean_title = re.sub(r'(?i)\(.*?official.*?\)|\[.*?\]', '', base_name).strip()
+    
+    try:
+        query = urllib.parse.quote(clean_title)
+        url = f"https://itunes.apple.com/search?term={query}&entity=song&limit=1"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        
+        with urllib.request.urlopen(req, timeout=8) as response:
+            data = json.loads(response.read().decode('utf-8'))
+        
+        if data.get('resultCount', 0) > 0:
+            track = data['results'][0]
+            artist = track.get('artistName', 'Unknown Artist')
+            album = track.get('collectionName', 'Unknown Album')
+            title = track.get('trackName', clean_title)
+            genre = track.get('primaryGenreName', 'Unknown')
+            
+            temp_file = filepath + ".temp.mp3"
+            ffmpeg_cmd = [
+                'ffmpeg', '-y', '-i', filepath,
+                '-metadata', f'title={title}',
+                '-metadata', f'artist={artist}',
+                '-metadata', f'album_artist={artist}',
+                '-metadata', f'album={album}',
+                '-metadata', f'genre={genre}',
+                '-codec', 'copy', temp_file
+            ]
+            
+            startupinfo = None
+            if os.name == 'nt':
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                
+            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, startupinfo=startupinfo)
+            os.replace(temp_file, filepath)
+            app.after(0, lambda: app.stats_label.config(text=f"Tagged: {artist} - {title}"))
+        else:
+            app.after(0, lambda: app.stats_label.config(text="Tagging skipped: No match found."))
+    except Exception:
+        app.after(0, lambda: app.stats_label.config(text="Tagging failed: Network error."))
+
+
+def stream_process(cmd, status_label, prefix_msg=None, is_full_audio=False):
+    """Run a subprocess, intercept progress for the bar, and stream other output to the terminal."""
     if prefix_msg:
         timestamp = datetime.now().strftime('%H:%M:%S')
-        log_widget.insert('end', f"{timestamp} {prefix_msg}\n")
-        log_widget.see('end')
+        print(f"{timestamp} {prefix_msg}")
 
     # Force yt-dlp to output nice newlines so python can read it properly
     if cmd[0] == 'yt-dlp' and '--newline' not in cmd:
@@ -92,6 +140,7 @@ def stream_process(cmd, log_widget, status_label, prefix_msg=None):
     prog_regex = re.compile(r'\[download\]\s+([0-9.]+)%.*?at\s+([a-zA-Z0-9./]+).*?ETA\s+([0-9:]+)')
     # --- NEW: Regex to catch the current downloading file ---
     dest_regex = re.compile(r'\[download\] Destination:\s*(.*)|\[ExtractAudio\] Destination:\s*(.*)')
+    downloaded_mp3_path = None
 
     for line in proc.stdout:
         line_str = line.strip()
@@ -100,12 +149,14 @@ def stream_process(cmd, log_widget, status_label, prefix_msg=None):
         # --- NEW: Check for filename to update the title dynamically ---
         dest_match = dest_regex.search(line_str)
         if dest_match:
-            # Group 1 is video, Group 2 is audio. Fallback appropriately.
-            raw_path = dest_match.group(1) or dest_match.group(2)
-            if raw_path:
-                filename = os.path.basename(raw_path)
-                # Remove extension for a cleaner look
-                clean_name = os.path.splitext(filename)[0]
+                # Group 1 is video, Group 2 is audio. Fallback appropriately.
+                raw_path = dest_match.group(1) or dest_match.group(2)
+                if raw_path:
+                    if raw_path.lower().endswith('.mp3'):
+                        downloaded_mp3_path = raw_path
+                    filename = os.path.basename(raw_path)
+                    # Remove extension for a cleaner look
+                    clean_name = os.path.splitext(filename)[0]
                 app.after(0, lambda f=clean_name: status_label.config(text=f"Downloading: {f}"))
         # --------------------------------------------------------------
 
@@ -117,12 +168,16 @@ def stream_process(cmd, log_widget, status_label, prefix_msg=None):
             eta = match.group(3)
             app.after(0, update_progress_gui, pct_val, speed, eta)
         else:
-            # Normal output line, send to the log box
+            # Normal output line, send to the terminal
             timestamp = datetime.now().strftime('%H:%M:%S')
-            log_widget.insert('end', f"{timestamp} {line_str}\n")
-            log_widget.see('end')
+            print(f"{timestamp} {line_str}")
 
     proc.wait()
+    
+    if is_full_audio and downloaded_mp3_path and os.path.exists(downloaded_mp3_path):
+        app.after(0, lambda: status_label.config(text="MP3 tagging Please wait..."))
+        app.after(0, lambda: app.stats_label.config(text="Querying online database for tags..."))
+        perform_online_tagging(downloaded_mp3_path)
     
     # --- NEW: Cleanup process tracking and disable pause button ---
     app.current_proc = None
@@ -132,20 +187,19 @@ def stream_process(cmd, log_widget, status_label, prefix_msg=None):
 
     final_status = 'Success' if proc.returncode == 0 else 'Failed'
     timestamp = datetime.now().strftime('%H:%M:%S')
-    log_widget.insert('end', f"{timestamp} {prefix_msg or 'Command'} - {final_status}\n")
-    log_widget.see('end')
+    print(f"{timestamp} {prefix_msg or 'Command'} - {final_status}")
     
     # Reset progress bar to zero when completely finished
     app.after(0, update_progress_gui, 0.0, "", "")
 
-def process_csv_file(log_widget, status_label):
+def process_csv_file(status_label):
     """Process a CSV batch of URLs with start/end times."""
     file_path = filedialog.askopenfilename(
         filetypes=[("CSV files", "*.csv")]
     )
     if not file_path:
         timestamp = datetime.now().strftime('%H:%M:%S')
-        log_widget.insert('end', f"{timestamp} CSV batch canceled by user.\n")
+        print(f"{timestamp} CSV batch canceled by user.")
         return
 
     with open(file_path, newline='', encoding='utf-8') as csvfile:
@@ -178,7 +232,7 @@ def process_csv_file(log_widget, status_label):
 
             threading.Thread(
                 target=stream_process,
-                args=(cmd, app.log, app.status_label,
+                args=(cmd, app.status_label,
                       f"Downloading {mode} {start}-{end}"),
                 daemon=True
             ).start()
@@ -383,6 +437,204 @@ class PlaylistDialog(tk.Toplevel):
         self.destroy()
 
 
+class FormatExplorerDialog(tk.Toplevel):
+    """Dialog to explore available formats for a URL."""
+    def __init__(self, parent, url):
+        super().__init__(parent)
+        self.title("Format Explorer")
+        self.geometry("700x400")
+        self.configure(bg='#000000')
+        self.url = url
+        self.formats = []
+
+        # Filter buttons
+        btn_frame = tk.Frame(self, bg='#2e2e2e')
+        btn_frame.pack(fill='x', pady=5, padx=10)
+        tk.Button(btn_frame, text="Show All", command=lambda: self.populate_list("ALL"), bg='#6c757d', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="MP4 Video", command=lambda: self.populate_list("MP4"), bg='#007bff', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="MP3 / Audio", command=lambda: self.populate_list("AUDIO"), bg='#28a745', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="Download Selected", command=self.download_selected, bg='#dc3545', fg='white', font=(None, 9, 'bold')).pack(side='right', padx=5)
+
+        # Treeview for formats
+        style = ttk.Style(self)
+        style.configure("T.Treeview", background="#1e1e1e", foreground="white", fieldbackground="#1e1e1e")
+        cols = ("ID", "Ext", "Resolution", "FPS", "Bitrate", "Size")
+        self.tree = ttk.Treeview(self, columns=cols, show='headings', height=15, style="T.Treeview")
+        self.sort_order = {c: True for c in cols}
+        for c in cols:
+            self.tree.heading(c, text=c, command=lambda _c=c: self.sort_column(_c, True))
+            self.tree.column(c, width=100, anchor='center')
+        self.tree.pack(fill='both', expand=True, padx=10, pady=10)
+
+        self.fetch_formats()
+
+    def fetch_formats(self):
+        self.tree.insert('', 'end', values=("Loading...", "", "Querying yt-dlp...", "", "", ""))
+        threading.Thread(target=self._fetch_worker, daemon=True).start()
+
+    def _fetch_worker(self):
+        cmd = ['yt-dlp', '--dump-json', self.url]
+        try:
+            # Suppress cmd popup on Windows, capture stderr just in case
+            startupinfo = None
+            if os.name == 'nt':
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True, startupinfo=startupinfo)
+            data = json.loads(proc.stdout)
+            self.formats = data.get('formats', [])
+            
+            # Ensure window wasn't closed before updating UI
+            if self.winfo_exists():
+                self.after(0, lambda: self.populate_list("ALL"))
+        except Exception as e:
+            print(f"Format fetch error: {e}")
+            if self.winfo_exists():
+                self.after(0, lambda: self.tree.insert('', 'end', values=("Error", "", "Failed to fetch formats", "", "", "")))
+
+    def populate_list(self, filter_type):
+        if not self.winfo_exists(): return
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        for f in self.formats:
+            ext = f.get('ext', 'N/A')
+            vcodec = f.get('vcodec', 'none')
+            acodec = f.get('acodec', 'none')
+            
+            if filter_type == "MP4" and ext != 'mp4': continue
+            if filter_type == "AUDIO" and vcodec != 'none': continue
+
+            fid = f.get('format_id', 'N/A')
+            res = f.get('resolution', 'audio only' if vcodec == 'none' else 'N/A')
+            size_bytes = f.get('filesize') or f.get('filesize_approx') or 0
+            size_mb = f"{size_bytes / (1024 * 1024):.2f} MB" if size_bytes else "Unknown"
+
+            self.tree.insert('', 'end', values=(fid, ext, res, size_mb, vcodec, acodec))
+
+
+class FormatExplorerDialog(tk.Toplevel):
+    """Dialog to explore available formats for a URL."""
+    def __init__(self, parent, url):
+        super().__init__(parent)
+        self.title("Format Explorer")
+        self.geometry("700x400")
+        self.configure(bg='#000000')
+        self.url = url
+        self.formats = []
+
+        # Filter buttons
+        btn_frame = tk.Frame(self, bg='#2e2e2e')
+        btn_frame.pack(fill='x', pady=5, padx=10)
+        tk.Button(btn_frame, text="Show All", command=lambda: self.populate_list("ALL"), bg='#6c757d', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="MP4 Video", command=lambda: self.populate_list("MP4"), bg='#007bff', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="MP3 / Audio", command=lambda: self.populate_list("AUDIO"), bg='#28a745', fg='white').pack(side='left', padx=5)
+        tk.Button(btn_frame, text="Download Selected", command=self.download_selected, bg='#dc3545', fg='white', font=(None, 9, 'bold')).pack(side='right', padx=5)
+
+        # Treeview for formats
+        style = ttk.Style(self)
+        style.configure("T.Treeview", background="#1e1e1e", foreground="white", fieldbackground="#1e1e1e")
+        cols = ("ID", "Ext", "Resolution", "FPS", "Bitrate", "Size")
+        self.tree = ttk.Treeview(self, columns=cols, show='headings', height=15, style="T.Treeview")
+        self.sort_order = {c: True for c in cols}
+        for c in cols:
+            self.tree.heading(c, text=c, command=lambda _c=c: self.sort_column(_c, self.sort_order[_c]))
+            self.tree.column(c, width=100, anchor='center')
+        self.tree.pack(fill='both', expand=True, padx=10, pady=10)
+
+        self.fetch_formats()
+
+    def fetch_formats(self):
+        self.tree.insert('', 'end', values=("Loading...", "", "Querying yt-dlp...", "", "", ""))
+        threading.Thread(target=self._fetch_worker, daemon=True).start()
+
+    def sort_column(self, col, reverse):
+        self.sort_order[col] = not self.sort_order[col]
+        l = [(self.tree.set(k, col), k) for k in self.tree.get_children('')]
+        def convert(val):
+            try:
+                if col == "Size": return float(val.replace(" MB", "")) if "MB" in val else -1.0
+                if col == "Resolution": return int(val.split("x")[1]) if "x" in val else -1
+                if col == "FPS": return float(val) if val != "N/A" else -1.0
+                if col == "Bitrate": return float(val.replace("k", "")) if "k" in val else -1.0
+            except:
+                return -1.0
+            return val
+        l.sort(key=lambda t: convert(t[0]), reverse=self.sort_order[col])
+        for index, (val, k) in enumerate(l):
+            self.tree.move(k, '', index)
+        self.tree.heading(col, command=lambda _c=col: self.sort_column(_c, not reverse))
+
+    def _fetch_worker(self):
+        cmd = ['yt-dlp', '--dump-json', self.url]
+        try:
+            # Use startupinfo to hide console window on Windows if desired, otherwise standard subprocess
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=True)
+            data = json.loads(proc.stdout)
+            self.formats = data.get('formats', [])
+            self.after(0, lambda: self.populate_list("ALL"))
+        except Exception as e:
+            self.after(0, lambda: self.tree.insert('', 'end', values=("Error", "", "Failed to fetch formats", "", "", "")))
+
+    def populate_list(self, filter_type):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+            
+        display_items = []
+        for f in self.formats:
+            vcodec = f.get('vcodec', 'none')
+            acodec = f.get('acodec', 'none')
+            # Force UI to show MP4 for videos and MP3 for audio, ignoring raw server formats
+            ext = 'mp4' if vcodec != 'none' else 'mp3'
+            
+            height = f.get('height', 0)
+            if height and height > 1080: continue
+            
+            if filter_type == "MP4" and ext != 'mp4': continue
+            if filter_type == "AUDIO" and vcodec != 'none': continue
+
+            fid = f.get('format_id', 'N/A')
+            res = f.get('resolution', 'audio only' if vcodec == 'none' else 'N/A')
+            fps = f.get('fps')
+            fps_str = str(fps) if fps else "N/A"
+            tbr = f.get('tbr')
+            bitrate_str = f"{int(tbr)}k" if tbr else "N/A"
+            
+            size_bytes = f.get('filesize') or f.get('filesize_approx') or 0
+            size_raw_mb = size_bytes / (1024 * 1024) if size_bytes else 0
+            size_mb = f"{size_raw_mb:.2f} MB" if size_raw_mb else "Unknown"
+            
+            # Ranking: High quality MP4 (<=1080p) -> High quality MP3/Audio -> Rest
+            is_vid = (vcodec != 'none' and ext == 'mp4')
+            is_aud = (vcodec == 'none')
+            score = 100000 + height if is_vid else (50000 + size_raw_mb if is_aud else size_raw_mb)
+            
+            display_items.append((score, fid, ext, res, fps_str, bitrate_str, size_mb))
+
+        # Sort descending by score for default order
+        display_items.sort(key=lambda x: x[0], reverse=True)
+        
+        for item in display_items:
+            self.tree.insert('', 'end', values=item[1:])
+
+    def download_selected(self):
+        """Downloads the format currently selected in the Treeview."""
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a format to download.")
+            return
+            
+        item = self.tree.item(selected[0])
+        format_id = item['values'][0] # ID is the first visible column
+        
+        output_template = os.path.join(self.master.download_dir, "%(title)s.%(ext)s")
+        cmd = ['yt-dlp', '--force-overwrites', '-f', str(format_id), '-o', output_template, self.url]
+        
+        self.master.run_custom(cmd, f"Downloading format {format_id}")
+        self.destroy()
+
+
 class Mr_AlvinRocks(tk.Tk):
     """Main application window."""
     def __init__(self):
@@ -506,7 +758,7 @@ class Mr_AlvinRocks(tk.Tk):
 
         # Header label
         self.header = tk.Label(
-            self, text="Mr Alvin Rocks",
+            self, text="Mr.AlvinRocks - YouTube Clip Downloader",
             font=(None, 32, 'bold'),
             bg='#2e2e2e', fg='cyan'
         )
@@ -539,15 +791,17 @@ class Mr_AlvinRocks(tk.Tk):
         ).grid(row=0, column=0, sticky='e')
         self.url = tk.Entry(
             url_frame, font=(None, 12), width=50,
-            bg='#3e3e3e', fg='white', insertbackground='white'
+            bg='#dc3545', fg='white', insertbackground='white'
         )
         self.url.grid(row=0, column=1, padx=5, sticky='w')
+        self.url.bind("<KeyRelease>", self.validate_url_color)
+
         self.res_var = tk.StringVar(value="1080")
         tk.Label(url_frame, text="Res:", bg='#2e2e2e', fg='white').grid(row=0, column=2, padx=5)
         tk.OptionMenu(url_frame, self.res_var, "2160", "1080", "720", "480", "360").grid(row=0, column=3)
         
         # --- NEW: Audio Quality Dropdown ---
-        self.audio_q_var = tk.StringVar(value="320")  # Updated default to 320
+        self.audio_q_var = tk.StringVar(value="320")
         tk.Label(url_frame, text="Audio kbps:", bg='#2e2e2e', fg='white').grid(row=0, column=4, padx=5)
         tk.OptionMenu(url_frame, self.audio_q_var, "320", "256", "192", "128").grid(row=0, column=5)
 
@@ -555,20 +809,15 @@ class Mr_AlvinRocks(tk.Tk):
         btn_frame = tk.Frame(self, bg='#2e2e2e')
         btn_frame.pack(pady=15)
         button_info = [
-            ("Download", self.on_download, '#28a745'),
+            ("Video", self.on_download, '#28a745'),
             ("Audio", self.on_audio, '#17a2b8'),
-            ("Playlist", self.on_playlist, '#ffc107'), # ADDED PLAYLIST BUTTON
+            ("Playlist", self.on_playlist, '#ffc107'),
             ("Open Folder", self.on_open_folder, '#6c757d'),
-            ("Clear Log", self.on_clear_log, '#dc3545'),
-            ("Export Log", self.on_export_log, '#007bff'),
             ("Settings", self.on_settings, '#ff33ff'),
-            ("CSV Batch", lambda: process_csv_file(self.log, self.status_label), '#6610f2'),
-            ("Exit", self.on_close, '#343a40'),
-            ("Help", lambda: messagebox.showinfo("Help", "For help, visit:\nhttps://github.com/yt-dlp gui and Section Downloader"), '#17a2b8'),
-            ("About", lambda: messagebox.showinfo("About", "YouTube Clip Downloader v1.0\nCreated by Mr.AlvinRocks"), '#17a2b8'),
-            ("Check for Updates", lambda: messagebox.showinfo("Updates", "No updates available."), '#17a2b8'),
-            ("Feedback", lambda: messagebox.showinfo("Feedback", "For feedback, visit:\nhttps://github.com/yt-dlp gui and Section Downloader"), '#17a2b8'),
-            ("Report Issues", lambda: messagebox.showinfo("Report Issues", "To report issues, visit:\nhttps://github.com/yt-dlp gui and Section Downloader"), '#17a2b8')
+            ("📋 Paste", self.paste_from_clipboard, '#6c757d'),
+            ("🔍 Formats", self.on_format_explorer, '#17a2b8'),
+            ("My Channel", self.on_my_channel, '#ff0000'),
+            ("Exit", self.on_close, '#dc3545')
         ]
         
         # Grid layout adjusted for new button count
@@ -582,20 +831,14 @@ class Mr_AlvinRocks(tk.Tk):
             )
             row = idx // 4
             col = idx % 4
-            btn.grid(row=row, column=col, padx=5, pady=5, sticky='nsew')
+            btn.grid(row=row, column=col, padx=8, pady=8, sticky='nsew') # Increased padding slightly
             btn_frame.columnconfigure(col, weight=1)
 
-        # Log box - Reduced height by ~25%
-        self.log = scrolledtext.ScrolledText(
-            self, height=9,
-            bg='#1e1e1e', fg='white', insertbackground='white'
-        )
-        self.log.configure(bg='#1e1e1e', fg='white')
-        self.log.pack(fill='both', expand=True, padx=20, pady=(0,10))
+        # Log box removed. Expanding the Status Frame to utilize the freed space.
         
         # --- NEW: Status Frame for Label + Pause Button ---
         status_frame = tk.Frame(self, bg='#1e1e1e')
-        status_frame.pack(pady=(0, 5), fill='x', padx=20)
+        status_frame.pack(pady=(15, 10), fill='both', expand=True, padx=20) # Added 'expand=True'
         
         self.status_label = tk.Label(
             status_frame, 
@@ -650,16 +893,34 @@ class Mr_AlvinRocks(tk.Tk):
         self.theta += 0.05
         self.after(30, self.animate_header)
 
-    def run_custom(self, cmd, msg):
+    def run_custom(self, cmd, msg, is_full_audio=False):
         """Helper to start streaming thread."""
         # --- NEW: Enable the Pause button when a download starts ---
         self.pause_btn.config(state='normal', text="Pause", bg='#ffc107')
         
         threading.Thread(
             target=stream_process,
-            args=(cmd, self.log, self.status_label, msg),
+            args=(cmd, self.status_label, msg, is_full_audio),
             daemon=True
         ).start()
+
+    def paste_from_clipboard(self):
+        """Grabs text from the system clipboard and pastes it into the URL box."""
+        try:
+            self.url.delete(0, tk.END)
+            self.url.insert(0, self.clipboard_get())
+            self.validate_url_color() # --- NEW: Trigger validation immediately upon pasting
+        except tk.TclError:
+            pass # Fails gracefully if clipboard is empty or non-text
+
+    def validate_url_color(self, event=None):
+        """Dynamically changes URL box background based on validity."""
+        url = self.url.get().strip()
+        # Basic regex check for youtube or standard http/https links
+        if re.match(r'^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+$', url):
+            self.url.config(bg='#28a745') # Green
+        else:
+            self.url.config(bg='#dc3545') # Red
 
     # --- NEW: Pause / Resume Functionality ---
     def toggle_pause(self):
@@ -724,25 +985,45 @@ class Mr_AlvinRocks(tk.Tk):
             self.download_dir, "%(title)s.%(ext)s"
         )
         
+        is_full_audio = (start == '00:00:00' and end == '00:00:00')
+        
         cmd = [
             'yt-dlp', 
             '--force-overwrites', 
-            '--force-keyframes-at-cuts',
             '--extract-audio',
             '--audio-format', 'mp3',
-            '--embed-thumbnail',             # <-- ADDED THIS LINE
-            '--audio-quality', f'{self.audio_q_var.get()}K', # Uses the new dropdown
-            '--postprocessor-args', 'ffmpeg:-threads 0 -movflags +faststart',
-            '--download-sections', f'*{start}-{end}',
-            '-o', output_template,
-            url
+            '--embed-thumbnail',
+            '--embed-metadata',
+            '--parse-metadata', '%(title)s:%(meta_title)s',
+            '--audio-quality', f'{self.audio_q_var.get()}K',
+            '-o', output_template
         ]
         
-        self.run_custom(cmd, f"Extracting audio {start} - {end}")
+        # Only pass section flags if the user actually inputted timestamps
+        if not is_full_audio:
+            cmd.extend(['--force-keyframes-at-cuts', '--download-sections', f'*{start}-{end}'])
+            
+        cmd.extend(['--postprocessor-args', 'ffmpeg:-threads 0 -movflags +faststart', url])
+        
+        msg_suffix = "Full Audio" if is_full_audio else f"{start} - {end}"
+        self.run_custom(cmd, f"Extracting audio: {msg_suffix}", is_full_audio=is_full_audio)
+
+    def on_format_explorer(self):
+        """Open the format explorer dialog."""
+        url = self.url.get().strip()
+        if not url:
+            messagebox.showerror("Error", "Please paste a valid URL first.")
+            return
+        FormatExplorerDialog(self, url)
 
     def on_playlist(self):
         """Open the playlist dialog."""
         PlaylistDialog(self)
+
+    def on_my_channel(self):
+        """Open the user's YouTube channel in the default web browser."""
+        channel_url = "https://www.youtube.com/@Mr.Alvin_Games/streams" # TODO: Put your YouTube Channel URL here!
+        webbrowser.open(channel_url)
 
     def on_open_folder(self):
         """Open download directory in system file browser."""
