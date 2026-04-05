@@ -1,169 +1,73 @@
-Disclaimer: Still 100% AI-generated chaos. If it breaks, blame the robots. If it works, I'm a genius.
-# yt-dlp-gui-and-section-downloader
-A Python-based GUI application for downloading specific sections of YouTube videos using yt-dlp and ffmpeg
-### 📚 Table of Contents
-- [Features](#features)  
-- [Prerequisites](#prerequisites) and [Installation](#installation)     
-- [Usage](#usage)  
----
-Note : IF you dont want .exe file and conformtable with .py then just download the yt-dlp-gui-and-section-downloader.py file from code
+Mr. Alvin Rocks - yt-dlp GUI & Section Downloader v2.0
+The Final Edition
 
-### Features
+A powerful, Python-based graphical interface for yt-dlp designed for precision. This tool allows you to preview videos, set exact timestamps visually, and download high-bitrate video or audio sections without needing the command line.
 
-* 🎯 **Sectional Downloads**: Select specific start and end times to download only the desired part of a YouTube video, powered by `yt-dlp` and `ffmpeg`.
-* 🖼️ **User-Friendly GUI**: Built with `tkinter`, offering a clean, responsive interface with drag-and-drop support and visual feedback.
-* 📼 **Dual Output Options**: Choose between downloading MP4 (video) or extracting MP3 (audio) from selected segments.
-* 💽 **Batch CSV Processing**: Load a `.csv` file with multiple URLs and timestamps for bulk processing. Supports `URL`, `start`, `end`, and `mode` columns.
-* 🧠 **Smart Mode Detection**: Automatically handles missing timestamps or unsupported formats with helpful error messages.
-* 🎨 **Theming & Visuals**: Animated title with dynamic GUI themes using `Pillow` images and background color cycling.
-* 🛠️ **FFmpeg Integration**: Uses `ffmpeg` directly with hardware acceleration support (`-hwaccel`) for faster and more efficient downloads.
-* 📁 **Custom Save Directory**: Save all downloads to your chosen folder instead of defaulting to the script path.
-* 📊 **Live ETA & Speed Feedback**: Displays real-time download progress including speed and estimated time remaining.
-* 🧾 **Logging System**: Automatically logs download activity and errors to a text file for later review.
+🚀 Key Features
+🎯 Visual Sectional Downloads: Use the built-in player to set exact start and end times. No more guessing timestamps.
 
----
-Certainly! Here's a comprehensive **Prerequisites** section tailored for the `yt-dlp-gui-and-section-downloader` project:
+📺 In-App Video Previewer: Powered by VLC, featuring a YouTube-style interactive timeline with hover-tooltips for frame-perfect seeking.
 
----
+🌐 Integrated YouTube Browser: A built-in Edge-based browser (WebView2) that allows you to browse YouTube and send links directly to the downloader or previewer with one click.
 
-## Prerequisites
+👻 Phantom Menu: A smart, invisible menu that detects when you copy a YouTube link to your clipboard and pops up at your mouse cursor for instant action.
 
-To run or develop the `yt-dlp-gui-and-section-downloader`, ensure your system meets the following requirements:
+⏸️ Pause & Resume: Fully supports pausing active downloads and resuming them later, including child processes like FFmpeg.
 
-### ✅ System Requirements
+💎 Max Quality Bitrate: Automatically unlocks the highest available bitrates (VP9/AV1) for 1080p, 2K, and 4K downloads.
 
-* **Operating System**: Windows, macOS, or Linux
-* **Architecture**: 64-bit recommended
-* **Python Version**: 3.7 or higher
-* **Internet Connection**: Required for downloading dependencies and video content
-## Installation
-### 🛠️ Core Dependencies
+📑 Smart Playlist Downloader: Fetch entire playlists and select specifically which videos you want to download as MP4, MP3, or both.
 
-1. **yt-dlp**: A powerful command-line tool for downloading videos from YouTube and other platforms.
+🔍 Format Explorer: A technical deep-dive tool to view every available stream (resolution, FPS, bitrate, and size) for a specific URL.
 
-   * Installation: Follow the instructions on the [yt-dlp GitHub repository](https://github.com/yt-dlp/yt-dlp).
+🍪 Cookie & Account Support: Supports importing cookies from Edge, Chrome, Firefox, or a cookies.txt file to download age-restricted or private content.
 
-2. **ffmpeg**: A multimedia framework for handling video, audio, and other multimedia files and streams.
+🎨 Dynamic Themes & UI: Features an animated "breathing" rainbow header and multiple themes (Black, Light, Blue, Purple).
 
-   * Installation: Refer to the [FFmpeg official website](https://ffmpeg.org/download.html) for platform-specific installation guides.
+✅ Prerequisites
+Before running the application, ensure your system has the following installed:
 
-3. **Python Libraries**:
+VLC Media Player: Required for the In-App Previewer.
 
-   * **tkinter**: Standard GUI toolkit for Python.
+FFmpeg: Required for merging video/audio and processing section cuts.
 
-     * Installation: Usually bundled with Python. If not, install via your package manager or [Python's official website](https://www.python.org/).
-   * **pandas**: Data manipulation and analysis library.
+Node.js: Recommended to help yt-dlp solve complex YouTube JavaScript signature challenges.
 
-     * Installation: Run `pip install pandas` in your terminal or command prompt.
-   * **yt-dlp (Python bindings)**: Python interface for yt-dlp.
+⚙️ Installation & Setup
+This version features V1.6 Automatic Setup. On the first run, the app will:
 
-     * Installation: Run `pip install yt-dlp` in your terminal or command prompt.
+Automatically install required Python libraries (yt-dlp, tkwebview2, pillow, psutil, python-vlc).
 
-### ⚙️ Optional Dependencies
+Attempt to install FFmpeg and VLC via winget if they are missing (Windows only).
 
-* **pydub**: Audio processing library, useful for advanced audio features.
+Manual Install:
 
-  * Installation: Run `pip install pydub`.
-  * Note: Requires ffmpeg or libav for audio format conversions.([Reddit][1])
-
-* **requests**: HTTP library for making requests to download files.
-
-  * Installation: Run `pip install requests`.
-
-### 📦 Packaging Tools (For Developers)
-
-* **PyInstaller**: Convert Python scripts into standalone executables.
-
-  * Installation: Run `pip install pyinstaller`.
-  * Usage: Refer to the [PyInstaller documentation](https://pyinstaller.readthedocs.io/en/stable/) for guidance.
-
-* **Inno Setup** (Windows): Create Windows installers.
-
-  * Installation: Download from [Inno Setup's website](https://jrsoftware.org/isinfo.php).([GitHub][2])
-
-### 🧪 Testing Dependencies
-
-* **pytest**: Framework for testing Python applications.
-
-  * Installation: Run `pip install pytest`.
-  * Usage: Run tests using `pytest` in your terminal or command prompt.([Reddit][3])
-
-### 🧰 Development Tools
-
-* **Visual Studio Code** or **PyCharm**: Integrated Development Environments (IDEs) for Python.
-* **Git**: Version control system for managing code.
-
-  * Installation: Download from [Git's official website](https://git-scm.com/).([LinuxConfig][4])
-
-### 📄 CSV File Format
-
-For batch processing, prepare a `.csv` file with the following columns:
-
-* **URL**: The video URL.
-* **Start Time**: Start time in seconds or HH\:MM:SS format.
-* **End Time**: End time in seconds or HH\:MM:SS format.([Reddit][5])
-
-Example:
-
-```csv
-https://www.youtube.com/watch?v=abcd1234,00:01:00,00:02:30
-https://www.youtube.com/watch?v=efgh5678,00:05:00,00:06:15
-```
-
-
-
----
-📥 Download
-Download the latest version of the application from the Releases section.
-
-Navigate to the Releases page.
-
-Download the .zip file for the latest release.
-
-Extract the contents to your desired location.
-
+Bash
+pip install yt-dlp tkwebview2 pillow psutil python-vlc nodejs-bin[cmd]
 🚀 Usage
-Running the Application
-Navigate to the extracted folder.
+1. The Main Dashboard
+Paste Link: Paste a URL or let the Auto-Grab feature pull it from your clipboard automatically.
 
-Locate and double-click the yt-dlp-gui.exe file to launch the application.
+Set Times: Manually enter Start/End times or click Open In-App Player to set them visually.
 
-Downloading a Single Section
-Paste the YouTube video URL into the input field.
+Download: Choose your resolution (up to 2160p) or audio bitrate (up to 320kbps) and hit Video or Audio.
 
-Specify the Start Time and End Time in HH:MM:SS or seconds format.
+2. The In-App Previewer
+Watch the video directly in the app.
 
-Choose the desired output format (MP4 or MP3).
+Click [Set as Start] or [Set as End] while the video is playing to capture the current timestamp instantly.
 
-Click the Download button to save the selected segment.
-Gist
-+2
-VideoHelp
-+2
-Docs.rs
-+2
+Use the Playlist button in the previewer to download other items from the same series without leaving the window.
 
-Batch Download via CSV
-Prepare a .csv file with the following format:
+3. The Integrated Browser
+Click 🌐 Browser to open the built-in YouTube window.
 
-csv
-Copy
-Edit
-URL,Start Time,End Time
-https://www.youtube.com/watch?v=abcd1234,00:01:00,00:02:30
-https://www.youtube.com/watch?v=efgh5678,00:05:00,00:06:15
-Click the Select CSV button in the GUI.
+When you find a video you like, click the action buttons at the bottom to send the URL to the downloader or the clipper.
 
-Choose your prepared .csv file.
+4. Managing Tools
+Use the Update Tools button to keep yt-dlp and your environment up to date with the latest YouTube changes.
 
-The application will process and download each specified segment.
-Gist
+👑 Author's Note (Mr. Alvin Rocks)
+"I am completely satisfied and happy with how Version 2.0 has turned out. It does exactly what I need it to do, and because of that, this is the final release of the application. While the browser sign-in may occasionally require a re-login due to Edge's strict sandboxing, the app is now in a stable, completed state. Feel free to use Pull Requests if you find a solution to any remaining quirks!"
 
-Output
-Downloaded files are saved in the default or specified output directory.
-
-File names are generated based on video titles and timestamps.
-
-🤝 Contributing
-Contributions are welcome! Please fork the repository and submit a pull request for any enhancements or bug fixes.
-
+Disclaimer: Still 100% AI-generated chaos. If it breaks, blame the robots. If it works, I'm a genius.
