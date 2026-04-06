@@ -483,8 +483,8 @@ class PlaylistDialog(tk.Toplevel):
         opt_frame = tk.Frame(self, bg='#2e2e2e')
         opt_frame.pack(pady=10, fill='x', padx=20)
         
-        self.format_var = tk.StringVar(value="MP4")
-        tk.Radiobutton(opt_frame, text="MP4", variable=self.format_var, value="MP4", bg='#2e2e2e', fg='white', selectcolor='#000000').pack(side='left', padx=5)
+        self.format_var = tk.StringVar(value="MKV_BEST")
+        tk.Radiobutton(opt_frame, text="Max Quality (MKV)", variable=self.format_var, value="MKV_BEST", bg='#2e2e2e', fg='white', selectcolor='#000000').pack(side='left', padx=5)
         tk.Radiobutton(opt_frame, text="MP3", variable=self.format_var, value="MP3", bg='#2e2e2e', fg='white', selectcolor='#000000').pack(side='left', padx=5)
         # --- NEW: Both Option ---
         tk.Radiobutton(opt_frame, text="Both", variable=self.format_var, value="BOTH", bg='#2e2e2e', fg='white', selectcolor='#000000').pack(side='left', padx=5)
@@ -553,13 +553,13 @@ class PlaylistDialog(tk.Toplevel):
         cmd += ['--playlist-items', playlist_items]
         # --------------------------------------------------------------
         
-        if fmt == "MP4":
-            cmd += ['-f', 'bestvideo+bestaudio', '--merge-output-format', 'mp4', '--postprocessor-args', 'ffmpeg:-threads 0 -preset fast -movflags +faststart']
+        if fmt == "MKV_BEST":
+            cmd += ['-f', 'bestvideo+bestaudio', '--merge-output-format', 'mkv', '--postprocessor-args', 'ffmpeg:-threads 0 -preset fast']
         elif fmt == "MP3":
-            cmd += ['--extract-audio', '--audio-format', 'mp3', '--embed-thumbnail', '--postprocessor-args', 'ffmpeg:-threads 0 -movflags +faststart']
+            cmd += ['--extract-audio', '--audio-format', 'mp3', '--embed-thumbnail', '--postprocessor-args', 'ffmpeg:-threads 0']
         elif fmt == "BOTH":
-            # Downloads the best video, merges to MP4, extracts MP3, and keeps the MP4
-            cmd += ['-f', 'bestvideo+bestaudio', '--merge-output-format', 'mp4', '--extract-audio', '--keep-video', '--audio-format', 'mp3', '--postprocessor-args', 'ffmpeg:-threads 0 -preset fast -movflags +faststart']
+            # Downloads the best video, merges to MKV, extracts MP3, and keeps the MKV
+            cmd += ['-f', 'bestvideo+bestaudio', '--merge-output-format', 'mkv', '--extract-audio', '--keep-video', '--audio-format', 'mp3', '--postprocessor-args', 'ffmpeg:-threads 0 -preset fast']
             
         cmd += ['-o', output_template, url]
             
@@ -1803,22 +1803,22 @@ class Mr_AlvinRocks(tk.Tk):
     # -----------------------------------------
 
     def _build_video_download_args(self, res, is_full_video):
-        """Use strict MP4 for full downloads, safer broad matching for clipped downloads."""
-        # By removing the [ext=mp4] limit, yt-dlp is free to grab the absolute highest 
-        # quality stream (like VP9/AV1) available for that resolution.
+        """Use MKV to allow the absolute highest quality streams (VP9/AV1)."""
         if is_full_video:
             return [
                 '--format',
                 f'bestvideo[height<={res}]+bestaudio/best',
-                '--merge-output-format', 'mp4'
+                '--merge-output-format', 'mkv'
             ]
 
         return [
             '--format',
-            f'bestvideo[height<={res}]+bestaudio/best',
-            '--merge-output-format', 'mp4',
+            f'bestvideo[protocol!=http_dash_segments][height<={res}]+bestaudio[protocol!=http_dash_segments]/best[protocol!=http_dash_segments]',
+            '--merge-output-format', 'mkv',
             '--force-keyframes-at-cuts',
-            '--concurrent-fragments', '1'
+            '--concurrent-fragments', '1',
+            '--hls-prefer-native',
+            '--fragment-retries', '10'
         ]
 
     def on_download(self):
@@ -1830,20 +1830,24 @@ class Mr_AlvinRocks(tk.Tk):
         url = self.url.get().strip()
         start = ':'.join(e.get() or '00' for e in self.start)
         end = ':'.join(e.get() or '00' for e in self.end)
-        output_template = os.path.join(
-            self.download_dir, "%(title)s.%(ext)s"
-        )
         
         is_full_video = (start == '00:00:00' and end == '00:00:00')
+        
+        if is_full_video:
+            output_template = os.path.join(self.download_dir, "%(title)s.%(ext)s")
+        else:
+            safe_start = start.replace(':', '-')
+            safe_end = end.replace(':', '-')
+            output_template = os.path.join(self.download_dir, f"%(title)s [{safe_start} to {safe_end}].%(ext)s")
         
         cmd += self._build_video_download_args(res, is_full_video)
 
         if not is_full_video:
             cmd.extend(['--download-sections', f'*{start}-{end}'])
             # --- V1.13 FIX: Force FFmpeg to maintain 1080p High Quality (CRF 18) during section cuts! ---
-            cmd += ['--postprocessor-args', 'ffmpeg:-threads 0 -c:v libx264 -crf 18 -preset fast -c:a aac -b:a 192k -movflags +faststart']
+            cmd += ['--postprocessor-args', 'ffmpeg:-threads 0 -c:v libx264 -crf 18 -preset fast -c:a aac -b:a 192k']
         else:
-            cmd += ['--postprocessor-args', 'ffmpeg:-threads 0 -preset fast -movflags +faststart']
+            cmd += ['--postprocessor-args', 'ffmpeg:-threads 0 -preset fast']
             
         cmd.extend(['-o', output_template, url])
         
@@ -1857,11 +1861,15 @@ class Mr_AlvinRocks(tk.Tk):
         url = self.url.get().strip()
         start = ':'.join(e.get() or '00' for e in self.start)
         end = ':'.join(e.get() or '00' for e in self.end)
-        output_template = os.path.join(
-            self.download_dir, "%(title)s.%(ext)s"
-        )
         
         is_full_audio = (start == '00:00:00' and end == '00:00:00')
+        
+        if is_full_audio:
+            output_template = os.path.join(self.download_dir, "%(title)s.%(ext)s")
+        else:
+            safe_start = start.replace(':', '-')
+            safe_end = end.replace(':', '-')
+            output_template = os.path.join(self.download_dir, f"%(title)s [{safe_start} to {safe_end}].%(ext)s")
         
         cmd = self.get_base_cmd() + [
             '--force-overwrites', '--no-playlist', 
@@ -1876,6 +1884,7 @@ class Mr_AlvinRocks(tk.Tk):
         
         # Only pass section flags if the user actually inputted timestamps
         if not is_full_audio:
+            cmd.extend(['--format', 'bestaudio[protocol!=http_dash_segments]/best[protocol!=http_dash_segments]'])
             cmd.extend(['--download-sections', f'*{start}-{end}'])
             
         cmd.extend(['--postprocessor-args', 'ffmpeg:-threads 0 -movflags +faststart', url])
