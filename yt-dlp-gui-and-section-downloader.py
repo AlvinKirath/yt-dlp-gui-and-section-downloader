@@ -173,7 +173,8 @@ def update_progress_gui(pct, speed, eta):
             pd = app.preview_dialog
             if hasattr(pd, 'preview_status_main') and hasattr(pd, 'preview_status_stats'):
                 if 0 < pct < 100:
-                    pd.preview_status_main.config(text=f"Downloading: {pct:.1f}%")
+                    current_title = app.status_label.cget('text')
+                    pd.preview_status_main.config(text=f"{current_title} ({pct:.1f}%)")
                     pd.preview_status_stats.config(text=f"Speed: {speed}   |   ETA: {eta}")
                 elif pct >= 100:
                     pd.preview_status_main.config(text="Processing complete...")
@@ -263,6 +264,9 @@ def stream_process(cmd, status_label, prefix_msg=None, is_full_audio=False):
     if prefix_msg and " - " in prefix_msg:
         try:
             times_part = prefix_msg.split("Downloading: ")[-1]
+            # Strip off any quality tags like [1080p Max Quality] before splitting
+            if "[" in times_part:
+                times_part = times_part[:times_part.find("[")].strip()
             parts = times_part.split(" - ")
             h1, m1, s1 = map(int, parts[0].split(':'))
             h2, m2, s2 = map(int, parts[1].split(':'))
@@ -1200,8 +1204,8 @@ class YouTubeBrowserDialog(tk.Toplevel):
     def send_to_app(self):
         """Grabs the URL and sends it to the VLC Preview Player for exact timestamping."""
         if self._sync_url():
-            self._pause_browser_media()
             self.parent.open_preview()
+            self.destroy()
 
 
 class PhantomMenu(tk.Toplevel):
