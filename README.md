@@ -1,40 +1,93 @@
-## Mr. Alvin Rocks - yt-dlp GUI & Section Downloader v2.0
-The Completed "Final Edition"
+# YT Downloader 3.0
+### More control. Less compromise.
 
-A powerful, Python-based graphical interface for yt-dlp designed for absolute precision. This tool allows you to preview videos, set exact timestamps visually, and download high-bitrate video or audio sections without ever touching a command prompt.
+**A powerful, no-nonsense YouTube downloader built for people who want things done their way.**
 
-### 🆕 Today's Final Polish & Fixes
-To ensure the v2.0 release is truly "Final," we’ve integrated the following mission-critical updates today:
+YT Downloader 3.0 isn't just another interface wrapped around yt-dlp. It's a feature-packed desktop utility designed to give you greater control over downloads, timestamps, formats, playlists, and playback — without making the process unnecessarily complicated.
 
-MKV Quality Unlocked: Switched the default container to MKV. This allows yt-dlp to grab the absolute best streams (VP9/AV1) that YouTube offers, which were previously blocked by the MP4 format limit.
+Whether you're downloading an entire video, extracting a specific section, saving audio, or managing an entire playlist, everything is accessible from one unified interface.
 
-Intelligent File Naming: Added an Anti-Overwrite system. When downloading clips, the app now appends the timestamps (e.g., [00-10-00 to 00-12-30]) to the filename so you can download multiple sections of the same video without losing data.
+## What's New in Version 3.0
 
-The DASH Stability Fix: Implemented a protocol to bypass broken DASH segments in Live or DVR streams. This fixes the "Invalid data found" error that was causing FFmpeg to crash during section downloads.
+### 1. Smarter Section Downloads
+Downloading a specific timestamp range should be straightforward — and reliable.
 
-Preview Window HUD: The in-app previewer now shows a live status update. You can see the filename, download percentage, real-time speed, and ETA directly in the preview window while it works.
+- Improved section-download recovery and validation.
+- Automatically checks downloaded clips for integrity using FFprobe.
+- Attempts targeted timestamp-based recovery when a section download is incomplete.
+- Avoids unnecessarily downloading the entire source video as a fallback.
+- Better handling of interrupted connections and incomplete downloads.
 
-Browser Workflow: The integrated YouTube browser now automatically closes once you've sent a link to the player, keeping your workspace clutter-free.
+### 2. Hardware-Accelerated Encoding
+Make use of the hardware you already own.
 
-### 🚀 Core Features
-Visual Sectional Downloads: Use the built-in player to set exact start and end times visually.
+Choose between:
+- AMD AMF
+- NVIDIA NVENC
+- Intel Quick Sync
+- CPU Encoding
+- Automatic Encoder Selection
 
-In-App Video Previewer: Powered by VLC, featuring a YouTube-style interactive timeline with hover-tooltips for frame-perfect seeking.
+Automatic mode detects available hardware encoders and selects an appropriate option. If hardware encoding fails, the application can fall back to CPU encoding.
 
-Integrated YouTube Browser: A built-in Edge-based browser (WebView2). Browse, select, and send links to the downloader or clipper instantly.
+### 3. A Redesigned Settings Centre
+A cleaner, more organised settings experience, with dedicated sections for:
 
-Phantom Menu: A smart menu that detects YouTube links in your clipboard and pops up at your mouse cursor for immediate action.
+- **General:** Download location, automatic clipboard grabbing and overwrite protection.
+- **Downloads:** Resolution, formats, audio quality, subtitles, retries and concurrent fragments.
+- **Appearance:** Themes and optional wallpaper.
+- **Access:** Browser cookies and cookies.txt support.
+- **Advanced:** Startup and window behaviour.
 
-Pause & Resume: Fully supports pausing active downloads and resuming them later, managing all background child processes.
+The settings interface also supports full-page scrolling, so options aren't hidden beyond the visible screen.
 
-Smart Playlist Downloader: Fetch entire playlists and pick specific videos to download as MKV, MP3, or both.
+### 4. Improved Download Reliability
+- Better handling of extraction and format-availability errors.
+- Improved retry behaviour for interrupted downloads.
+- Better support for YouTube's changing extraction requirements.
+- Startup diagnostics and dependency checks.
+- Automatic setup of supported tools and dependencies.
 
-### ✅ Prerequisites
-VLC Media Player: Required for the In-App Previewer.
+## Core Features
 
-FFmpeg: Required for merging video/audio and processing section cuts.
+**Precision Timestamp Clipping**
+- Set start and end timestamps manually.
+- Preview videos using the integrated VLC player.
+- Navigate through an interactive timeline.
+- Use playback controls, volume adjustment and quick seeking.
+- Copy the start timestamp directly into the end timestamp when needed.
 
-Node.js: Recommended for solving complex YouTube signature challenges.
+**Video & Audio Downloads**
+- Multiple resolution options.
+- MP4, MKV and supported format merging.
+- MP3, WAV, FLAC, M4A, AAC and original audio options.
+- Selectable audio bitrates up to 320 kbps.
+- Embedded metadata for supported MP3 downloads.
 
-### 👑 Author's Note
-"I am completely satisfied and happy with how Version 2.0 has turned out. It does exactly what I need it to do—highest quality, precise clipping, and no more overwriting files. This is the completed state of the application." — Mr. Alvin Rocks
+**Playlist Manager**
+- Load entire playlists.
+- Select individual videos or manage the entire selection.
+- Download videos or audio using your preferred settings.
+
+**Format Explorer**
+- Inspect available formats.
+- Filter MP4 video and audio formats.
+- Sort available options and download selected formats.
+
+**Integrated Browser**
+- Embedded Microsoft Edge WebView2 browser.
+- Persistent browser profile for login sessions.
+- Quick actions for grabbing supported YouTube links.
+
+**Download Management**
+- Pause and resume downloads.
+- Live progress, download speed and estimated completion time.
+- Download logs and quick access to the output folder.
+
+## Built for Control, Not Compromise.
+
+YT Downloader 3.0 brings precision, flexibility and reliability together in one desktop application.
+
+No unnecessary clutter. No needless complications. Just the controls you need, the formats you want, and the freedom to download on your own terms.
+
+**YT Downloader 3.0 — Your downloads. Your settings. Your control.**
